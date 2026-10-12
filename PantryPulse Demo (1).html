@@ -1,0 +1,708 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>PantryPulse Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: intake + priorities on the left, route map and ranked matches on the right, then the decision assistant, need board and log. */
+:root {
+  --bg: #f2f6f4;
+  --surface: #ffffff;
+  --surface-2: #e8efec;
+  --ink: #12201c;
+  --muted: #546660;
+  --line: #d3dfda;
+  --accent: #0b7a5e;
+  --accent-ink: #ffffff;
+  --warn: #c76212;
+  --crit: #b83232;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1815; --surface: #15231f; --surface-2: #1c2e29; --ink: #e6f0ec; --muted: #94aaa2;
+    --line: #263933; --accent: #3fc79f; --accent-ink: #06231a; --warn: #f0954a; --crit: #f07272;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1815; --surface: #15231f; --surface-2: #1c2e29; --ink: #e6f0ec; --muted: #94aaa2;
+  --line: #263933; --accent: #3fc79f; --accent-ink: #06231a; --warn: #f0954a; --crit: #f07272;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; padding-inline: 16px; padding-block: 20px 40px; }
+.wrap { max-width: 1120px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+h1 { font-family: var(--font-display); font-size: clamp(26px, 5vw, 36px); margin: 0; letter-spacing: -0.02em; line-height: 1.1; text-wrap: balance; }
+h1 span { color: var(--accent); }
+h2 { font-family: var(--font-display); font-size: 19px; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+.tag { font-family: var(--font-data); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border: 1px solid var(--line); padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+.lede { color: var(--muted); margin: 6px 0 0; max-width: 62ch; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.stat b { display: block; font-family: var(--font-data); font-size: 24px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.stat small { color: var(--muted); font-size: 12px; }
+.grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+form { display: flex; flex-direction: column; gap: 12px; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+select, input[type=number], input[type=text] { font: inherit; font-size: 15px; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; width: 100%; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.check { flex-direction: row; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+button { font: inherit; font-weight: 600; cursor: pointer; border-radius: 6px; padding: 10px 14px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
+button.ghost { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+.group { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 13px; font-weight: 500; padding: 6px 10px; border-radius: 999px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); }
+.chip:hover:not(:disabled) { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.match { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: var(--bg); }
+.match.top { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.match-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; }
+.match-head strong { font-family: var(--font-display); font-size: 17px; }
+.score { font-family: var(--font-data); font-size: 22px; font-variant-numeric: tabular-nums; color: var(--accent); }
+.score small { font-size: 12px; color: var(--muted); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.meta span { font-variant-numeric: tabular-nums; }
+.bars { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 14px; }
+.bar { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.bar i { display: block; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.bar i em { display: block; height: 100%; background: var(--accent); }
+.alloc { font-size: 14px; font-weight: 600; color: var(--accent); }
+.out { color: var(--muted); font-size: 13px; border-top: 1px dashed var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.out b { color: var(--crit); font-weight: 600; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+td.need { font-family: var(--font-data); text-align: center; font-variant-numeric: tabular-nums; cursor: pointer; user-select: none; background: color-mix(in srgb, var(--warn) calc(var(--n) * 0.55%), transparent); }
+td.need.hot { outline: 2px solid var(--crit); outline-offset: -2px; font-weight: 600; }
+td.need:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.log li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.log time { font-family: var(--font-data); font-size: 12px; color: var(--muted); }
+.empty { color: var(--muted); font-size: 14px; border: 1px dashed var(--line); border-radius: 8px; padding: 16px; margin: 0; }
+.weights { font-family: var(--font-data); font-size: 12px; color: var(--muted); margin: 0; }
+.mapbox { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 8px; }
+.mapbox svg { display: block; width: 100%; height: auto; }
+.mapnote { font-size: 12px; color: var(--muted); margin: 4px 4px 0; }
+.ring { fill: none; stroke: var(--line); stroke-dasharray: 3 4; }
+.ringlbl { fill: var(--muted); font-size: 10px; font-family: var(--font-data); }
+.lbl { fill: var(--ink); font-size: 12px; font-family: var(--font-body); }
+.lbl.dim { fill: var(--muted); }
+.chat { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; padding: 4px 2px; }
+.msg { max-width: min(680px, 100%); padding: 10px 12px; border-radius: 10px; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.user { align-self: flex-end; background: var(--accent); color: var(--accent-ink); }
+.msg.ai { align-self: flex-start; background: var(--surface-2); }
+.msg small { display: block; font-family: var(--font-data); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 2px; }
+.ask { display: flex; gap: 8px; }
+.ask input { flex: 1; min-width: 0; }
+.plan { font-family: var(--font-data); font-size: 12px; width: 100%; min-height: 120px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Pantry<span>Pulse</span></h1>
+      <p class="lede">A surplus donation goes in. The system ranks nearby pantries by what they need right now, how fast the food can get there, and whether they can keep it safe. An assistant explains every call.</p>
+    </div>
+    <span class="tag">Prototype · sample data</span>
+  </header>
+
+  <section class="stats" aria-label="Impact so far">
+    <div class="stat"><b id="s-lb">0</b><small>lb rerouted this session</small></div>
+    <div class="stat"><b id="s-meals">0</b><small>meals (at 1.2 lb each)</small></div>
+    <div class="stat"><b id="s-disp">0</b><small>pickups dispatched</small></div>
+    <div class="stat"><b id="s-cap">0</b><small>lb of pantry space open</small></div>
+  </section>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>New surplus donation</h2>
+      <form id="f">
+        <label for="donor">Donor
+          <select id="donor"></select>
+        </label>
+        <label for="cat">Food type
+          <select id="cat">
+            <option value="produce">Fresh produce</option>
+            <option value="dairy">Dairy and eggs</option>
+            <option value="protein">Meat and protein</option>
+            <option value="bakery">Bread and bakery</option>
+            <option value="pantry">Shelf-stable goods</option>
+          </select>
+        </label>
+        <div class="row">
+          <label for="qty">Amount (lb)
+            <input id="qty" type="number" min="5" max="1000" step="5" value="180">
+          </label>
+          <label for="hrs">Safe for (hours)
+            <input id="hrs" type="number" min="1" max="72" step="1" value="4">
+          </label>
+        </div>
+        <label class="check" for="cold"><input id="cold" type="checkbox" checked> Needs refrigeration</label>
+        <button type="submit">Find best pantry</button>
+      </form>
+      <div class="group">
+        <h3>Try a scenario</h3>
+        <div class="chips" id="scen"></div>
+      </div>
+      <div class="group">
+        <h3>What matters most</h3>
+        <div class="chips" id="prio" role="group" aria-label="Priority"></div>
+        <p class="weights" id="wline"></p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Route map and ranked matches</h2></div>
+      <div class="mapbox">
+        <div id="map"></div>
+        <p class="mapnote">Distance from the donor is drawn to scale. Direction is illustrative.</p>
+      </div>
+      <div id="results"></div>
+    </div>
+  </div>
+
+  <section class="panel" id="assist">
+    <div class="panel-head">
+      <h2>Decision assistant</h2>
+      <span class="tag" id="assist-tag">Checking assistant…</span>
+    </div>
+    <p class="hint">Quick questions answer instantly from the matching engine. Typed questions are answered by an AI assistant that sees this donation and the current rankings. The assistant advises and the coordinator decides.</p>
+    <div class="chips" id="qchips"></div>
+    <div class="chat" id="chat" role="log" aria-live="polite"></div>
+    <form class="ask" id="askf" hidden>
+      <input id="askq" type="text" placeholder="Ask about this match, e.g. “Is Northgate a safe pick?”" aria-label="Ask the assistant" maxlength="400" autocomplete="off">
+      <button type="submit" id="asksend">Ask</button>
+      <button type="button" class="ghost" id="askstop" hidden>Stop</button>
+    </form>
+    <p class="hint" id="assist-note" hidden></p>
+  </section>
+
+  <section class="panel">
+    <h2>Live need board</h2>
+    <p class="hint">Need is a 0–100 level each pantry reports per food type. Click a cell to flag a shortage (95) and click again to undo. Rankings update right away.</p>
+    <div class="scroll"><table id="board"></table></div>
+  </section>
+
+  <section class="panel">
+    <h2>Dispatch log</h2>
+    <ul class="log" id="log"></ul>
+    <div><button class="ghost" id="reset" type="button">Reset demo</button></div>
+  </section>
+</div>
+
+<script>
+var CATS = [["produce","Produce"],["dairy","Dairy"],["protein","Protein"],["bakery","Bakery"],["pantry","Shelf-stable"]];
+var CATNAME = { produce: "fresh produce", dairy: "dairy and eggs", protein: "meat and protein", bakery: "bread and bakery", pantry: "shelf-stable goods" };
+var LBL = { need: "need", distance: "distance", time: "time to spare", space: "space" };
+var KEYS = ["need", "distance", "time", "space"];
+var DONORS = [
+  { id: "d1", name: "Greenfield Market (grocery)", miles: [2.1, 6.8, 3.4, 4.9, 8.2, 5.5] },
+  { id: "d2", name: "Casa Luna Kitchen (restaurant)", miles: [5.3, 1.9, 7.1, 2.8, 6.4, 3.3] },
+  { id: "d3", name: "Lakeside High cafeteria", miles: [7.7, 4.2, 1.6, 9.8, 3.1, 2.4] },
+  { id: "d4", name: "Sunrise Bakery", miles: [3.6, 2.4, 5.9, 1.2, 10.5, 6.1] }
+];
+var PANTRIES0 = [
+  { id: "p1", name: "Eastside Community Pantry", short: "Eastside", fridge: true, closes: 5, cap: 400, need: { produce: 85, dairy: 60, protein: 70, bakery: 30, pantry: 40 } },
+  { id: "p2", name: "Riverbend Faith Kitchen", short: "Riverbend", fridge: false, closes: 3, cap: 250, need: { produce: 50, dairy: 20, protein: 40, bakery: 80, pantry: 70 } },
+  { id: "p3", name: "Oak Hollow Family Center", short: "Oak Hollow", fridge: true, closes: 7, cap: 600, need: { produce: 60, dairy: 90, protein: 55, bakery: 45, pantry: 35 } },
+  { id: "p4", name: "Northgate Neighbors Pantry", short: "Northgate", fridge: true, closes: 2, cap: 150, need: { produce: 95, dairy: 75, protein: 85, bakery: 20, pantry: 50 } },
+  { id: "p5", name: "Hilltop Senior Meals", short: "Hilltop", fridge: true, closes: 6, cap: 200, need: { produce: 70, dairy: 80, protein: 60, bakery: 55, pantry: 60 } },
+  { id: "p6", name: "Commons Student Pantry", short: "Commons", fridge: false, closes: 4, cap: 300, need: { produce: 45, dairy: 30, protein: 35, bakery: 65, pantry: 90 } }
+];
+var PRESETS = [
+  { key: "balanced", label: "Balanced", w: { need: 0.40, distance: 0.25, time: 0.20, space: 0.15 } },
+  { key: "need", label: "Neediest first", w: { need: 0.60, distance: 0.15, time: 0.15, space: 0.10 } },
+  { key: "speed", label: "Fastest delivery", w: { need: 0.20, distance: 0.35, time: 0.35, space: 0.10 } }
+];
+var SCENARIOS = [
+  { label: "Grocery produce", donor: 0, cat: "produce", qty: 180, hrs: 4, cold: true },
+  { label: "Restaurant surplus", donor: 1, cat: "protein", qty: 120, hrs: 3, cold: true },
+  { label: "Bakery closing", donor: 3, cat: "bakery", qty: 90, hrs: 8, cold: false },
+  { label: "Cafeteria dairy", donor: 2, cat: "dairy", qty: 700, hrs: 2, cold: true }
+];
+var HANDLING_MIN = 30, MPH = 25, MEAL_LB = 1.2;
+var state, last = null, presetKey = "balanced", hist = [], busy = false, sampleFn = null, ctl = null;
+
+function fresh() {
+  return { pantries: JSON.parse(JSON.stringify(PANTRIES0)), orig: JSON.parse(JSON.stringify(PANTRIES0)), log: [], lb: 0, disp: 0 };
+}
+function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+function W() { return PRESETS.filter(function (p) { return p.key === presetKey; })[0].w; }
+
+/* Pure scoring: ranked eligible pantries plus the ones ruled out, with reasons. */
+function rank(donor, pantries, d, w) {
+  var eligible = [], out = [];
+  pantries.forEach(function (p, i) {
+    var miles = donor.miles[i];
+    var travel = Math.round(miles / MPH * 60);
+    var spoil = d.hrs * 60;
+    var why = [];
+    if (d.cold && !p.fridge) why.push("no cold storage");
+    if (travel + HANDLING_MIN > spoil) why.push("would arrive after the food is no longer safe (" + (travel + HANDLING_MIN) + " min trip vs " + spoil + " min window)");
+    if (travel > p.closes * 60) why.push("closes before a driver could arrive");
+    if (p.cap <= 0) why.push("no space left");
+    if (why.length) { out.push({ p: p, idx: i, miles: miles, why: why }); return; }
+    var slack = spoil - (travel + HANDLING_MIN);
+    var parts = {
+      need: p.need[d.cat],
+      distance: clamp(1 - miles / 15, 0, 1) * 100,
+      time: clamp(slack / 120, 0, 1) * 100,
+      space: Math.min(p.cap, d.qty) / d.qty * 100
+    };
+    var score = w.need * parts.need + w.distance * parts.distance + w.time * parts.time + w.space * parts.space;
+    eligible.push({ p: p, idx: i, miles: miles, travel: travel, parts: parts, score: score });
+  });
+  eligible.sort(function (a, b) { return b.score - a.score; });
+  var left = d.qty;
+  eligible.forEach(function (m) {
+    m.take = Math.min(m.p.cap, left);
+    left -= m.take;
+  });
+  return { eligible: eligible, out: out, unplaced: left };
+}
+
+function contrib(m) {
+  var w = W(), o = {};
+  KEYS.forEach(function (k) { o[k] = w[k] * m.parts[k]; });
+  return o;
+}
+
+function read() {
+  return {
+    donorIdx: document.getElementById("donor").selectedIndex,
+    cat: document.getElementById("cat").value,
+    qty: clamp(Number(document.getElementById("qty").value) || 0, 5, 1000),
+    hrs: clamp(Number(document.getElementById("hrs").value) || 0, 1, 72),
+    cold: document.getElementById("cold").checked
+  };
+}
+
+function bar(label, v) {
+  return '<div class="bar">' + label + ' ' + Math.round(v) + '<i><em style="width:' + clamp(v, 0, 100) + '%"></em></i></div>';
+}
+
+/* ---------- Route map ---------- */
+function renderMap() {
+  var cx = 260, cy = 170, K = 12;
+  var d = last ? last.d : read();
+  var donor = DONORS[d.donorIdx];
+  var status = {};
+  if (last) {
+    last.r.eligible.forEach(function (m, i) { status[m.idx] = m.take > 0 ? (i === 0 ? "top" : "placed") : "backup"; });
+    last.r.out.forEach(function (o) { status[o.idx] = "out"; });
+  }
+  var s = '<svg viewBox="0 0 520 340" role="img" aria-label="Schematic map: the donor in the centre and six pantries at their distance from it">';
+  [4, 8].forEach(function (mi) {
+    s += '<circle class="ring" cx="' + cx + '" cy="' + cy + '" r="' + (mi * K) + '"/>';
+    var a = Math.PI / 3;
+    s += '<text class="ringlbl" x="' + (cx + mi * K * Math.cos(a) + 3) + '" y="' + (cy + mi * K * Math.sin(a) - 2) + '">' + mi + ' mi</text>';
+  });
+  var nodes = "", lines = "", labels = "";
+  state.pantries.forEach(function (p, i) {
+    var ang = (-90 + i * 60) * Math.PI / 180;
+    var r = donor.miles[i] * K;
+    var x = cx + r * Math.cos(ang), y = cy + r * Math.sin(ang);
+    var st = status[i] || "none";
+    var stroke = st === "top" ? "var(--accent)" : st === "placed" ? "var(--accent)" : "var(--line)";
+    var width = st === "top" ? 4 : st === "placed" ? 2.5 : 1;
+    if (st === "top" || st === "placed") lines += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="' + stroke + '" stroke-width="' + width + '" stroke-linecap="round"/>';
+    var fill = st === "top" ? "var(--accent)" : st === "placed" ? "var(--surface)" : st === "out" ? "var(--surface-2)" : "var(--surface)";
+    var ns = st === "out" ? "var(--muted)" : "var(--accent)";
+    nodes += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (st === "top" ? 9 : 7) + '" fill="' + fill + '" stroke="' + ns + '" stroke-width="2"/>';
+    if (st === "out") nodes += '<path d="M' + (x - 3.5).toFixed(1) + ' ' + (y - 3.5).toFixed(1) + 'l7 7m0 -7l-7 7" stroke="var(--muted)" stroke-width="1.6" stroke-linecap="round"/>';
+    var cs = Math.cos(ang), sn = Math.sin(ang);
+    var anchor = cs > 0.3 ? "start" : cs < -0.3 ? "end" : "middle";
+    var lx = anchor === "start" ? x + 13 : anchor === "end" ? x - 13 : x;
+    var ly = sn < -0.3 ? y - 14 : sn > 0.3 ? y + 22 : y + 4;
+    var dim = st === "out" ? " dim" : "";
+    labels += '<text class="lbl' + dim + '" x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="' + anchor + '">' + p.short + ' · ' + donor.miles[i].toFixed(1) + ' mi</text>';
+  });
+  s += lines + nodes + labels;
+  s += '<circle cx="' + cx + '" cy="' + cy + '" r="10" fill="var(--ink)"/><text class="lbl" x="' + cx + '" y="' + (cy + 27) + '" text-anchor="middle" style="font-weight:600">Donor</text>';
+  s += '</svg>';
+  document.getElementById("map").innerHTML = s;
+}
+
+/* ---------- Results ---------- */
+function renderResults() {
+  var box = document.getElementById("results");
+  if (!last) {
+    box.innerHTML = '<p class="empty">Enter a donation or pick a scenario. Ranked pantries, the reasoning behind each score, and any pantries ruled out will show up here.</p>';
+    renderMap();
+    return;
+  }
+  var r = last.r, d = last.d;
+  var html = "";
+  if (!r.eligible.length) {
+    html += '<p class="empty">No pantry can safely take this donation in time. Try a longer window, or uncheck refrigeration if the food is shelf-stable.</p>';
+  }
+  r.eligible.forEach(function (m, i) {
+    var cls = i === 0 ? "match top" : "match";
+    html += '<div class="' + cls + '">' +
+      '<div class="match-head"><strong>' + (i + 1) + '. ' + m.p.name + '</strong><span class="score">' + m.score.toFixed(1) + '<small> / 100</small></span></div>' +
+      '<div class="meta"><span>' + m.miles.toFixed(1) + ' mi</span><span>~' + m.travel + ' min drive</span><span>open ' + m.p.closes + ' more hr</span><span>' + m.p.cap + ' lb free</span><span>' + (m.p.fridge ? "cold storage" : "no cold storage") + '</span></div>' +
+      '<div class="bars">' + bar("Need", m.parts.need) + bar("Distance", m.parts.distance) + bar("Time to spare", m.parts.time) + bar("Space", m.parts.space) + '</div>' +
+      (m.take > 0 ? '<div class="alloc">Send ' + m.take + ' lb here</div>' : '<div class="hint">Backup option</div>') +
+      '</div>';
+  });
+  if (r.eligible.length && r.unplaced > 0) {
+    html += '<p class="empty">' + r.unplaced + ' lb has no home yet. Every eligible pantry is full.</p>';
+  }
+  if (r.out.length) {
+    html += '<div class="out">' + r.out.map(function (o) { return '<span><b>Ruled out:</b> ' + o.p.name + ' – ' + o.why.join("; ") + '</span>'; }).join("") + '</div>';
+  }
+  var placed = d.qty - r.unplaced;
+  html += '<div class="actions"><button id="go" type="button"' + (placed > 0 ? "" : " disabled") + '>Dispatch pickup (' + placed + ' lb)</button>' +
+    '<button id="copy" class="ghost" type="button"' + (placed > 0 ? "" : " disabled") + '>Copy pickup plan</button></div>' +
+    '<div id="planbox"></div>';
+  box.innerHTML = html;
+  document.getElementById("go").onclick = dispatch;
+  document.getElementById("copy").onclick = copyPlan;
+  renderMap();
+}
+
+function planText() {
+  var d = last.d, donor = DONORS[d.donorIdx], n = 0;
+  var lines = ["PantryPulse pickup plan", "Donor: " + donor.name, "Food: " + CATNAME[d.cat] + ", " + d.qty + " lb, safe for " + d.hrs + " hr" + (d.cold ? ", keep cold" : "")];
+  last.r.eligible.forEach(function (m) {
+    if (m.take > 0) { n += 1; lines.push(n + ". " + m.p.name + ": " + m.take + " lb, " + m.miles.toFixed(1) + " mi, about " + m.travel + " min drive"); }
+  });
+  lines.push("Prototype output with sample data. Confirm food-safety rules with the pantry before pickup.");
+  return lines.join("\n");
+}
+
+function copyPlan() {
+  if (!last) return;
+  var text = planText(), pb = document.getElementById("planbox"), btn = document.getElementById("copy");
+  function fallback() {
+    pb.innerHTML = '<textarea class="plan" id="plantext" readonly></textarea>';
+    var ta = document.getElementById("plantext"); ta.value = text; ta.focus(); ta.select();
+  }
+  try {
+    navigator.clipboard.writeText(text).then(function () {
+      pb.innerHTML = "";
+      btn.textContent = "Copied";
+      setTimeout(function () { if (btn) btn.textContent = "Copy pickup plan"; }, 1600);
+    }, fallback);
+  } catch (e) { fallback(); }
+}
+
+function dispatch() {
+  if (!last) return;
+  var d = last.d, r = last.r, donor = DONORS[d.donorIdx];
+  var placed = 0, names = [];
+  r.eligible.forEach(function (m) {
+    if (m.take > 0) {
+      var p = state.pantries.filter(function (x) { return x.id === m.p.id; })[0];
+      p.cap -= m.take;
+      placed += m.take;
+      names.push(m.p.name + " (" + m.take + " lb)");
+    }
+  });
+  if (!placed) return;
+  state.lb += placed;
+  state.disp += 1;
+  var now = new Date();
+  state.log.unshift({ t: now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), donor: donor.name, text: names.join(" + ") });
+  last = null;
+  document.getElementById("results").innerHTML = '<p class="empty">Pickup dispatched. Drivers and pantries would get an alert now. Submit another donation to keep going.</p>';
+  renderMap();
+  renderAll();
+}
+
+function renderBoard() {
+  var t = document.getElementById("board");
+  var h = "<thead><tr><th>Pantry</th>" + CATS.map(function (c) { return "<th>" + c[1] + "</th>"; }).join("") + "<th>Free space</th></tr></thead><tbody>";
+  state.pantries.forEach(function (p, pi) {
+    h += "<tr><td>" + p.name + "</td>";
+    CATS.forEach(function (c) {
+      var hot = p.need[c[0]] !== state.orig[pi].need[c[0]];
+      h += '<td class="need' + (hot ? " hot" : "") + '" tabindex="0" role="button" aria-label="' + p.short + ' ' + c[1] + ' need ' + p.need[c[0]] + '" data-p="' + pi + '" data-c="' + c[0] + '" style="--n:' + p.need[c[0]] + '">' + p.need[c[0]] + "</td>";
+    });
+    h += '<td style="font-family:var(--font-data)">' + p.cap + " lb</td></tr>";
+  });
+  t.innerHTML = h + "</tbody>";
+  Array.prototype.forEach.call(t.querySelectorAll("td.need"), function (td) {
+    function flip() {
+      var pi = Number(td.getAttribute("data-p")), c = td.getAttribute("data-c");
+      var p = state.pantries[pi];
+      p.need[c] = p.need[c] === state.orig[pi].need[c] ? 95 : state.orig[pi].need[c];
+      renderBoard();
+      if (last) { rerun(); }
+    }
+    td.onclick = flip;
+    td.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } };
+  });
+}
+
+function renderLog() {
+  var ul = document.getElementById("log");
+  if (!state.log.length) { ul.innerHTML = '<li class="hint" style="border:0">No pickups yet. Dispatched donations appear here.</li>'; return; }
+  ul.innerHTML = state.log.map(function (e) {
+    return "<li><span><strong>" + e.donor + "</strong> → " + e.text + "</span><time>" + e.t + "</time></li>";
+  }).join("");
+}
+
+function renderStats() {
+  document.getElementById("s-lb").textContent = state.lb.toLocaleString();
+  document.getElementById("s-meals").textContent = Math.round(state.lb / MEAL_LB).toLocaleString();
+  document.getElementById("s-disp").textContent = state.disp;
+  document.getElementById("s-cap").textContent = state.pantries.reduce(function (a, p) { return a + p.cap; }, 0).toLocaleString();
+}
+
+function renderPrio() {
+  var box = document.getElementById("prio");
+  box.innerHTML = PRESETS.map(function (p) {
+    return '<button type="button" class="chip" data-k="' + p.key + '" aria-pressed="' + (p.key === presetKey) + '">' + p.label + '</button>';
+  }).join("");
+  Array.prototype.forEach.call(box.querySelectorAll("button"), function (b) {
+    b.onclick = function () { presetKey = b.getAttribute("data-k"); renderPrio(); if (last) rerun(); };
+  });
+  var w = W();
+  document.getElementById("wline").textContent = "score = " + Math.round(w.need * 100) + "% need + " + Math.round(w.distance * 100) + "% distance + " + Math.round(w.time * 100) + "% time to spare + " + Math.round(w.space * 100) + "% space";
+}
+
+function renderAll() { renderBoard(); renderLog(); renderStats(); }
+
+function rerun() {
+  var d = read();
+  last = { d: d, r: rank(DONORS[d.donorIdx], state.pantries, d, W()) };
+  renderResults();
+}
+
+/* ---------- Instant answers (no AI needed) ---------- */
+function noRun() { return "Run a donation first, then I can explain the ranking."; }
+function qWhyTop() {
+  if (!last) return noRun();
+  var e = last.r.eligible;
+  if (!e.length) return "No pantry qualifies right now, so there is no top pick. The ruled-out list shows what blocked each one.";
+  var a = e[0], ca = contrib(a);
+  var sorted = KEYS.slice().sort(function (x, y) { return ca[y] - ca[x]; });
+  var s = a.p.name + " ranks first with " + a.score.toFixed(1) + " points. Its biggest contributions are " + LBL[sorted[0]] + " (" + ca[sorted[0]].toFixed(1) + " pts) and " + LBL[sorted[1]] + " (" + ca[sorted[1]].toFixed(1) + " pts).";
+  if (e[1]) {
+    var b = e[1], cb = contrib(b), best = null, bd = -1e9;
+    KEYS.forEach(function (k) { var df = ca[k] - cb[k]; if (df > bd) { bd = df; best = k; } });
+    s += " It leads " + b.p.name + " by " + (a.score - b.score).toFixed(1) + " points, mostly on " + LBL[best] + " (" + (bd >= 0 ? "+" : "") + bd.toFixed(1) + ").";
+  }
+  return s;
+}
+function qWhyOut() {
+  if (!last) return noRun();
+  var o = last.r.out;
+  if (!o.length) return "Nothing was ruled out. Every pantry passed the safety filters for this donation.";
+  return o.map(function (x) { return x.p.name + ": " + x.why.join("; ") + "."; }).join("\n");
+}
+function qSplit() {
+  if (!last) return noRun();
+  var e = last.r.eligible, d = last.d;
+  if (!e.length) return "Nothing to split yet because no pantry qualifies.";
+  var placed = e.filter(function (m) { return m.take > 0; });
+  if (placed.length > 1) {
+    return "Yes. " + e[0].p.name + " only has " + e[0].p.cap + " lb free, so the " + d.qty + " lb load is split: " + placed.map(function (m) { return m.take + " lb to " + m.p.name; }).join(", then ") + ". Splitting costs an extra stop, so check the drive times above.";
+  }
+  var s = "No split needed. " + e[0].p.name + " has " + e[0].p.cap + " lb free, which covers all " + d.qty + " lb.";
+  if (last.r.unplaced > 0) s = "Even after filling every eligible pantry, " + last.r.unplaced + " lb has no home. Consider a second outlet for the rest.";
+  return s;
+}
+function qFlip() {
+  if (!last) return noRun();
+  var e = last.r.eligible, w = W();
+  if (e.length < 2) return "There is only one eligible pantry, so nothing else could take first place.";
+  var a = e[0], b = e[1], gap = a.score - b.score;
+  var need = Math.ceil(gap / w.need) + 1, room = 100 - b.parts.need;
+  if (need <= room) return b.p.name + " would take first place if its reported need for " + CATNAME[last.d.cat] + " rose by about " + need + " points (from " + Math.round(b.parts.need) + " to " + Math.round(b.parts.need + need) + "). Click its cell in the need board to test that.";
+  var ca = contrib(a), cb = contrib(b), best = null, bd = -1e9;
+  ["distance", "time", "space"].forEach(function (k) { var df = ca[k] - cb[k]; if (df > bd) { bd = df; best = k; } });
+  return "A change in need alone could not flip the top pick, because " + b.p.name + " is already near the top of the need scale. " + a.p.name + " leads by " + gap.toFixed(1) + " points, mostly on " + LBL[best] + ". Try the “Neediest first” priority to see need weigh more.";
+}
+function qCompare() {
+  if (!last) return noRun();
+  var parts = [], names = {};
+  PRESETS.forEach(function (p) {
+    var r = rank(DONORS[last.d.donorIdx], state.pantries, last.d, p.w);
+    var n = r.eligible.length ? r.eligible[0].p.name : "no pantry qualifies";
+    parts.push(p.label + " → " + n);
+    names[n] = true;
+  });
+  var s = "Top pick under each priority: " + parts.join("; ") + ".";
+  s += Object.keys(names).length === 1 ? " All three agree, so this match is solid." : " They differ, so decide whether need or speed matters more for this food.";
+  return s;
+}
+var QUICK = [
+  { q: "Why is #1 first?", fn: qWhyTop },
+  { q: "Why were pantries ruled out?", fn: qWhyOut },
+  { q: "Should I split it?", fn: qSplit },
+  { q: "What would change the top pick?", fn: qFlip },
+  { q: "Compare priorities", fn: qCompare }
+];
+
+/* ---------- Assistant chat ---------- */
+function addMsg(kind, text, who) {
+  var chat = document.getElementById("chat");
+  var el = document.createElement("div");
+  el.className = "msg " + kind;
+  if (kind === "ai") { var s = document.createElement("small"); s.textContent = who || "Assistant"; el.appendChild(s); }
+  var body = document.createElement("span");
+  body.textContent = text;
+  el.appendChild(body);
+  chat.appendChild(el);
+  chat.scrollTop = chat.scrollHeight;
+  return body;
+}
+
+function snapshot() {
+  var w = W(), t = [];
+  if (!last) return "No donation has been run yet.";
+  var d = last.d;
+  t.push("Donation: " + DONORS[d.donorIdx].name + ", " + CATNAME[d.cat] + ", " + d.qty + " lb, safe for " + d.hrs + " hours, " + (d.cold ? "needs refrigeration" : "no refrigeration needed") + ".");
+  t.push("Priority mode: " + PRESETS.filter(function (p) { return p.key === presetKey; })[0].label + " (weights need " + w.need + ", distance " + w.distance + ", time " + w.time + ", space " + w.space + ").");
+  t.push("Ranked eligible pantries (best first):");
+  last.r.eligible.forEach(function (m, i) {
+    t.push((i + 1) + ". " + m.p.name + ": score " + m.score.toFixed(1) + "; need " + Math.round(m.parts.need) + "/100; " + m.miles.toFixed(1) + " mi, about " + m.travel + " min drive; closes in " + m.p.closes + " hr; " + m.p.cap + " lb free; " + (m.p.fridge ? "has" : "no") + " cold storage; suggested allocation " + m.take + " lb.");
+  });
+  if (last.r.out.length) {
+    t.push("Ruled out:");
+    last.r.out.forEach(function (o) { t.push("- " + o.p.name + ": " + o.why.join("; ")); });
+  }
+  if (last.r.unplaced > 0) t.push(last.r.unplaced + " lb cannot be placed.");
+  return t.join("\n");
+}
+
+function instructions() {
+  return "You are the decision assistant inside PantryPulse, a prototype that matches surplus food donations to food pantries. Help a food-bank coordinator understand the match and decide what to do. Use only the data below and the scoring rules. Answer in plain text with no markdown, in under 110 words. If the data cannot answer the question, say so plainly. Never declare food safe or unsafe; food-safety calls belong to the people handling it and local rules. You advise, the coordinator decides.\n\nScoring rules: pantries are ruled out if they lack cold storage when needed, if drive time plus 30 minutes handling exceeds the safe window, if they close before a driver can arrive, or if full. Remaining pantries get a score out of 100 from the weights shown. Splitting fills the best pantry first, then the next.\n\nCURRENT DATA\n" + snapshot();
+}
+
+function setBusy(b) {
+  busy = b;
+  document.getElementById("asksend").disabled = b;
+  document.getElementById("askstop").hidden = !b;
+  Array.prototype.forEach.call(document.querySelectorAll("#qchips button"), function (x) { x.disabled = b; });
+}
+
+function errCopy(code) {
+  if (code === "not_granted") return "Typed questions are turned off for this page. The quick questions still work.";
+  if (code === "rate_limited") return "That was too many questions or your usage limit. Try again in a moment.";
+  if (code === "sampling_disabled") return "Typed questions are not available for this account. The quick questions still work.";
+  return "Something went wrong reaching the assistant. Try again, or use a quick question.";
+}
+
+async function ask(q) {
+  if (!sampleFn || busy) return;
+  addMsg("user", q);
+  var body = addMsg("ai", "Thinking…", "Assistant");
+  ctl = new AbortController();
+  setBusy(true);
+  var turns = hist.slice(-10).concat([{ role: "user", content: q }]);
+  try {
+    var res = await sampleFn([{ role: "user", content: instructions() }].concat(turns), {
+      modelTier: "quick",
+      cache: false,
+      signal: ctl.signal,
+      onText: function (u) { body.textContent = u.text; document.getElementById("chat").scrollTop = 99999; }
+    });
+    hist.push({ role: "user", content: q }, { role: "assistant", content: res.text });
+    if (res.truncated) body.textContent = res.text + " …";
+  } catch (e) {
+    if (e && e.text) { body.textContent = e.text; }
+    else if (e && e.code === "cancelled") { body.textContent = "Stopped."; }
+    else { body.textContent = errCopy(e && e.code); }
+    if (e && (e.code === "not_granted" || e.code === "sampling_disabled")) { sampleFn = null; initAssistUI(); }
+  } finally {
+    setBusy(false);
+  }
+}
+
+function quick(item) {
+  if (busy) return;
+  addMsg("user", item.q);
+  var a = item.fn();
+  addMsg("ai", a, "Instant answer");
+  hist.push({ role: "user", content: item.q }, { role: "assistant", content: a });
+}
+
+function initAssistUI() {
+  var tag = document.getElementById("assist-tag"), f = document.getElementById("askf"), note = document.getElementById("assist-note");
+  if (sampleFn) {
+    tag.textContent = "Assistant connected";
+    f.hidden = false; note.hidden = true;
+  } else {
+    tag.textContent = "Beta";
+    f.hidden = true; note.hidden = false;
+    note.textContent = "Typed questions are under beta and will be updated soon. The quick questions above still work.";
+  }
+}
+
+async function initAssistant() {
+  try {
+    if (window.claude && window.claude.use) { sampleFn = await window.claude.use("sample"); }
+  } catch (e) { sampleFn = null; }
+  initAssistUI();
+}
+
+/* ---------- Wiring ---------- */
+function loadScenario(s) {
+  document.getElementById("donor").selectedIndex = s.donor;
+  document.getElementById("cat").value = s.cat;
+  document.getElementById("qty").value = s.qty;
+  document.getElementById("hrs").value = s.hrs;
+  document.getElementById("cold").checked = s.cold;
+  rerun();
+}
+
+document.getElementById("donor").innerHTML = DONORS.map(function (x) { return "<option>" + x.name + "</option>"; }).join("");
+document.getElementById("scen").innerHTML = SCENARIOS.map(function (s, i) { return '<button type="button" class="chip" data-i="' + i + '">' + s.label + '</button>'; }).join("");
+Array.prototype.forEach.call(document.querySelectorAll("#scen button"), function (b) {
+  b.onclick = function () { loadScenario(SCENARIOS[Number(b.getAttribute("data-i"))]); };
+});
+document.getElementById("qchips").innerHTML = QUICK.map(function (x, i) { return '<button type="button" class="chip" data-i="' + i + '">' + x.q + '</button>'; }).join("");
+Array.prototype.forEach.call(document.querySelectorAll("#qchips button"), function (b) {
+  b.onclick = function () { quick(QUICK[Number(b.getAttribute("data-i"))]); };
+});
+document.getElementById("f").addEventListener("submit", function (e) { e.preventDefault(); rerun(); });
+document.getElementById("cat").addEventListener("change", function () {
+  var c = document.getElementById("cat").value;
+  document.getElementById("cold").checked = (c === "produce" || c === "dairy" || c === "protein");
+});
+document.getElementById("donor").addEventListener("change", function () { if (!last) renderMap(); });
+document.getElementById("askf").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var inp = document.getElementById("askq"), q = inp.value.trim();
+  if (!q || busy) return;
+  inp.value = "";
+  ask(q);
+});
+document.getElementById("askstop").addEventListener("click", function () { if (ctl) ctl.abort(); });
+document.getElementById("reset").addEventListener("click", function () {
+  state = fresh(); last = null; hist = [];
+  document.getElementById("chat").innerHTML = "";
+  greet();
+  renderResults();
+  renderAll();
+});
+
+function greet() {
+  addMsg("ai", "Hi, I'm the PantryPulse assistant. Run a donation or pick a scenario, then tap a quick question or ask your own. I can explain why a pantry ranked where it did, what was ruled out, and what would change the pick.", "Assistant");
+}
+
+state = fresh();
+renderPrio();
+renderAll();
+greet();
+rerun();
+initAssistant();
+</script>
+
+</body></html>
